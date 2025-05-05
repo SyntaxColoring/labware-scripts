@@ -105,7 +105,7 @@ def main() -> int:
                     if existing_highest_version is not None
                     else 1
                 )
-                shutil.copy(draft_path, draft_path.with_name(f"{new_version}.json"))
+                draft_path.replace(draft_path.with_name(f"{new_version}.json"))
             else:
                 print(f"No changes in {draft_path}. Deleting it.", file=sys.stderr)
                 draft_path.unlink()

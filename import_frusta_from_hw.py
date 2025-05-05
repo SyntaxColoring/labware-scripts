@@ -8,8 +8,11 @@
 # Known caveats:
 # - Will not automatically find "sibling" labware, e.g. different tube rack configurations sharing the same tubes.
 # - xCount and yCount will not be populated automatically.
-# - Sometimes labware with bottom panels will have extra 0-height sections, depending on how they were written in the CSV.
-#   They should be manually rewritten.
+# - When Google Sheets outputs a CSV, it looks like it will include as many decimal
+#   places are visible, given the cell's formatting settings. This may be fewer than
+#   are actually available if you double-click into the cell. At the time of writing,
+#   the sheet's formatting settings are configured for 3 decimal places, which seems
+#   good enough to standardize on.
 
 
 import csv
@@ -129,9 +132,24 @@ def parse(
 
 def to_geometry_def(sections: list[Section]) -> Iterator[SD_WellSegment]:
     for below, above in itertools.pairwise(sections):
+        if below.dist_from_bottom == above.dist_from_bottom:
+            # When a labware has a bottom pattern of nested "mini-wells", the hardware
+            # spreadsheet encodes that like this:
+            #
+            # 1. Bottom of the "mini-well", x96
+            # 2. Top of the "mini-well", x96
+            # 3. Bottom of the "main part of the well", x1
+            # 4. Top of the "main part of the well", x1
+            #
+            # But 2 and 3 are really two equivalent ways of looking at the same
+            # exact cross-section through the labware. There is no height difference
+            # between them.
+            #
+            # Exclude these 0-height artifacts.
+            continue
+
         # We can't infer xCount and yCount from a single pattern qty number.
         # Populate them with obvious placeholder values so a human can fix them.
-
         has_pattern = above.pattern_qty not in (
             "",
             1,
@@ -232,9 +250,16 @@ def split_at_indices(source: list[T], indices: list[int]) -> list[list[T]]:
 
 
 def find_latest_definition(definition_root_dir: Path, load_name: str) -> Path:
+    def sort_key(p: Path) -> tuple[bool, int]:
+        # 0 < 1 < 2 < ... < "draft"
+        if p.stem == "draft":
+            return True, 0
+        else:
+            return False, int(p.stem)
+
     definition_files = sorted(
         (definition_root_dir / load_name).glob("*.json"),
-        key=lambda f: int(f.stem),
+        key=lambda f: sort_key(f),
     )
     if len(definition_files) == 0:
         raise RuntimeError(f"No definitions found for {load_name}")
