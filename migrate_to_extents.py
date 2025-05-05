@@ -45,21 +45,24 @@ def migrate(context: str, definition: dict) -> dict:
     y_dimension = definition["dimensions"]["yDimension"]
     z_dimension = definition["dimensions"]["zDimension"]
 
+    cofs_y_inverse = -cofs["y"]
+    y_inverse = -y_dimension
+
     x0 = cofs["x"]
     x1 = cofs["x"] + x_dimension
-    y0 = cofs["y"]
-    y1 = cofs["y"] + y_dimension
+    y0 = cofs_y_inverse
+    y1 = cofs_y_inverse + y_inverse
     z0 = cofs["z"]
     z1 = cofs["z"] + z_dimension
 
     new_extents = {
         "total": {
-            "backLeftBottom": {"x": x0, "y": y1, "z": z0},
-            "frontRightTop": {"x": x1, "y": y0, "z": z1},
+            "backLeftBottom": {"x": x0, "y": y0, "z": z0},
+            "frontRightTop": {"x": x1, "y": y1, "z": z1},
         },
         "footprint": {
-            "backLeft": {"x": x0, "y": y1},
-            "frontRight": {"x": x1, "y": y0},
+            "backLeft": {"x": 0, "y": 0},
+            "frontRight": {"x": x_dimension, "y": y_inverse},
         },
     }
 
