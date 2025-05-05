@@ -85,7 +85,9 @@ def main() -> int:
 
     if draft_from_latest:
         for path, _ in highest_versions.values():
-            shutil.copy(path, path.with_name("draft.json"))
+            new_path = path.with_name("draft.json")
+            print(f"{path} -> {new_path}")
+            shutil.copy(path, new_path)
 
     if commit_draft:
         for name, draft_path in drafts:
