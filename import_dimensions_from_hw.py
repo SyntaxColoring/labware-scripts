@@ -215,9 +215,16 @@ def rewrite_definition(
 
 
 def find_latest_definition(definition_root_dir: Path, load_name: str) -> Path:
+    def sort_key(p: Path) -> tuple[bool, int]:
+        # 0 < 1 < 2 < ... < "draft"
+        if p.stem == "draft":
+            return True, 0
+        else:
+            return False, int(p.stem)
+
     definition_files = sorted(
         (definition_root_dir / load_name).glob("*.json"),
-        key=lambda f: int(f.stem),
+        key=lambda f: sort_key(f),
     )
     if len(definition_files) == 0:
         raise RuntimeError(f"No definitions found for {load_name}")
