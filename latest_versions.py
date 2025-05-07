@@ -32,6 +32,11 @@ def main() -> int:
         " If the draft has identical contents to the existing highest version,"
         " it's removed.",
     )
+    action_group.add_argument(
+        "--versions-from-filenames",
+        action="store_true",
+        help="Set each labware's internal JSON version number to match its filename. Skips draft.json files.",
+    )
 
     parser.add_argument(
         "paths",
@@ -52,9 +57,11 @@ def main() -> int:
     print_latest: bool = args.print_latest
     draft_from_latest: bool = args.draft_from_latest
     commit_draft: bool = args.commit_draft
+    versions_from_filenames: bool = args.versions_from_filenames
     paths: list[pathlib.Path] = args.paths
 
-    highest_versions: dict[str, tuple[pathlib.Path, int]] = {}
+    all_numbered_versions: list[tuple[str, pathlib.Path, int]] = []
+    highest_numbered_versions: dict[str, tuple[pathlib.Path, int]] = {}
     drafts: list[tuple[str, pathlib.Path]] = []
 
     if not paths:
@@ -69,22 +76,23 @@ def main() -> int:
             if version == "draft":
                 drafts.append((name, path))
             else:
+                all_numbered_versions.append((name, path, version))
                 try:
-                    _, existing_highest_version = highest_versions[name]
+                    _, existing_highest_version = highest_numbered_versions[name]
                 except KeyError:
                     existing_highest_version = None
                 if (
                     existing_highest_version is None
                     or version > existing_highest_version
                 ):
-                    highest_versions[name] = (path, version)
+                    highest_numbered_versions[name] = (path, version)
 
     if print_latest:
-        for path, _ in highest_versions.values():
+        for path, _ in highest_numbered_versions.values():
             print(path)
 
     if draft_from_latest:
-        for path, _ in highest_versions.values():
+        for path, _ in highest_numbered_versions.values():
             new_path = path.with_name("draft.json")
             print(f"{path} -> {new_path}")
             shutil.copy(path, new_path)
@@ -92,7 +100,9 @@ def main() -> int:
     if commit_draft:
         for name, draft_path in drafts:
             try:
-                existing_file, existing_highest_version = highest_versions[name]
+                existing_file, existing_highest_version = highest_numbered_versions[
+                    name
+                ]
             except KeyError:
                 existing_file = None
                 existing_highest_version = None
@@ -109,6 +119,13 @@ def main() -> int:
             else:
                 print(f"No changes in {draft_path}. Deleting it.", file=sys.stderr)
                 draft_path.unlink()
+
+    if versions_from_filenames:
+        for _, path, version in all_numbered_versions:
+            json_contents = json.loads(path.read_bytes())
+            if json_contents["version"] != version:
+                json_contents["version"] = version
+                path.write_text(json.dumps(json_contents, indent=2, ensure_ascii=False))
 
 
 def resolve_paths(
