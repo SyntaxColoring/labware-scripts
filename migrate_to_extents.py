@@ -66,6 +66,14 @@ def migrate(context: str, definition: dict) -> dict:
         },
     }
 
+    new_wells = {}
+    for well_name, well_data in definition["wells"].items():
+        new_well = deepcopy(well_data)
+        new_well["y"] = -(y_dimension - well_data["y"])
+        new_wells[well_name] = new_well
+
+    definition["wells"] = new_wells
+
     # Delete cornerOffsetFromSlot and replace dimensions with extents.
     # Do it in this weird dict comprehension way to put extents
     # where dimensions used to be, preserving ordering, to minimize the diff.
