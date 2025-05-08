@@ -274,11 +274,11 @@ if __name__ == "__main__":
             failed_extractions.append((row_index, extraction_result))
             continue
 
-        definition_path = find_latest_definition(
-            definition_root_path, extraction_result.api_load_name
-        )
-        definition = json.loads(definition_path.read_bytes(), parse_float=Decimal)
         try:
+            definition_path = find_latest_definition(
+                definition_root_path, extraction_result.api_load_name
+            )
+            definition = json.loads(definition_path.read_bytes(), parse_float=Decimal)
             rewrite_definition(definition, extraction_result)
         except Exception as exception:
             failed_rewrites.append((row_index, extraction_result, exception))
