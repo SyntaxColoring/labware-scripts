@@ -25,10 +25,18 @@ def main() -> int:
         help="Filter the given paths to just the latest version of each labware, and copy those files to new draft.json files.",
     )
     action_group.add_argument(
-        "--commit-draft",
+        "--drafts-to-new-versions",
         action="store_true",
         help="Move all given draft.json files to [number].json,"
         " where [number] is one greater than the existing highest version."
+        " If the draft has identical contents to the existing highest version,"
+        " it's removed.",
+    )
+    action_group.add_argument(
+        "--drafts-to-latest-versions",
+        action="store_true",
+        help="Move all given draft.json files to [number].json,"
+        " where [number] is the existing highest version."
         " If the draft has identical contents to the existing highest version,"
         " it's removed.",
     )
@@ -56,7 +64,8 @@ def main() -> int:
     args = parser.parse_args()
     print_latest: bool = args.print_latest
     draft_from_latest: bool = args.draft_from_latest
-    commit_draft: bool = args.commit_draft
+    drafts_to_new_versions: bool = args.drafts_to_new_versions
+    drafts_to_latest_versions: bool = args.drafts_to_latest_versions
     versions_from_filenames: bool = args.versions_from_filenames
     paths: list[pathlib.Path] = args.paths
 
@@ -97,7 +106,7 @@ def main() -> int:
             print(f"{path} -> {new_path}")
             shutil.copy(path, new_path)
 
-    if commit_draft:
+    if drafts_to_new_versions or drafts_to_latest_versions:
         for name, draft_path in drafts:
             try:
                 existing_file, existing_highest_version = highest_numbered_versions[
@@ -110,11 +119,13 @@ def main() -> int:
             if existing_file is None or json.loads(
                 draft_path.read_bytes()
             ) != json.loads(existing_file.read_bytes()):
-                new_version = (
-                    existing_highest_version + 1
-                    if existing_highest_version is not None
-                    else 1
-                )
+                if existing_highest_version is None:
+                    new_version = 1
+                elif drafts_to_new_versions:
+                    new_version = existing_highest_version + 1
+                else:
+                    assert drafts_to_latest_versions
+                    new_version = existing_highest_version
                 draft_path.replace(draft_path.with_name(f"{new_version}.json"))
             else:
                 print(f"No changes in {draft_path}. Deleting it.", file=sys.stderr)
