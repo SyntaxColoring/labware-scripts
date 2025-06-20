@@ -7,15 +7,9 @@
 
 from copy import deepcopy
 import json
-from math import isclose
 from pathlib import Path
 import sys
-from traceback import format_exception
 import decimal
-
-
-PROBLEM_INDENT = " " * 2
-
 
 class DecimalEncoder(json.JSONEncoder):
     """A JSON encoder that can encode decimal.Decimal objects."""
@@ -60,7 +54,11 @@ def migrate(context: str, definition: dict) -> dict:
             "backLeftBottom": {"x": x0, "y": y0, "z": z0},
             "frontRightTop": {"x": x1, "y": y1, "z": z1},
         },
-        "footprint": {
+    }
+
+    features = {
+        "slotFootprintAsChild": {
+            "z": 0,
             "backLeft": {"x": 0, "y": 0},
             "frontRight": {"x": x_dimension, "y": y_inverse},
         },
@@ -74,16 +72,18 @@ def migrate(context: str, definition: dict) -> dict:
 
     definition["wells"] = new_wells
 
-    # Delete cornerOffsetFromSlot and replace dimensions with extents.
-    # Do it in this weird dict comprehension way to put extents
-    # where dimensions used to be, preserving ordering, to minimize the diff.
-    new_definition = {
-        ("extents" if original_key == "dimensions" else original_key): (
-            new_extents if original_key == "dimensions" else original_value
-        )
-        for original_key, original_value in definition.items()
-        if original_key != "cornerOffsetFromSlot"
-    }
+    # Delete cornerOffsetFromSlot and replace dimensions with extents,
+    # then add features right after extents.
+    # Do it in this way to preserve ordering and minimize the diff.
+    new_definition = {}
+    for original_key, original_value in definition.items():
+        if original_key == "cornerOffsetFromSlot":
+            continue
+        elif original_key == "dimensions":
+            new_definition["extents"] = new_extents
+            new_definition["features"] = features
+        else:
+            new_definition[original_key] = original_value
 
     print(f"{context}: migrated")
     return new_definition
